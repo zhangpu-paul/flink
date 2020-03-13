@@ -129,7 +129,9 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 	 *         {@code window.maxTimestamp + allowedLateness} landmark.
 	 * </ul>
 	 */
-	protected final long allowedLateness;
+	protected long allowedLateness;
+
+	private static final String ALLOWED_LATENESS_NAME = "window.allowedLateness.ms";
 
 	/**
 	 * {@link OutputTag} to use for late arriving events. Elements for which
@@ -238,6 +240,16 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 		// NOTE - the state may be null in the case of the overriding evicting window operator
 		if (windowStateDescriptor != null) {
 			windowState = (InternalAppendingState<K, W, IN, ACC, ACC>) getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
+		}
+
+		if (allowedLateness <= 0) {
+			try {
+				String allowedLatenessStr = getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap()
+					.get(ALLOWED_LATENESS_NAME);
+				allowedLateness = Long.valueOf(allowedLatenessStr);
+			} catch (Exception e) {
+				allowedLateness = 0;
+			}
 		}
 
 		// create the typed and helper states for merging windows

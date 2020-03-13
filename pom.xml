@@ -812,13 +812,13 @@ under the License.
 								<skip>true</skip>
 							</configuration>
 						</plugin>
-						<plugin>
+						<!--<plugin>
 							<groupId>org.apache.maven.plugins</groupId>
 							<artifactId>maven-checkstyle-plugin</artifactId>
 							<configuration>
 								<skip>true</skip>
 							</configuration>
-						</plugin>
+						</plugin>-->
 						<plugin>
 							<groupId>org.scalastyle</groupId>
 							<artifactId>scalastyle-maven-plugin</artifactId>
@@ -1369,10 +1369,10 @@ under the License.
 					</excludes>
 				</configuration>
 			</plugin>
-			<plugin>
+			<!--<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-			</plugin>
+			</plugin>-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -1576,7 +1576,7 @@ under the License.
 					</configuration>
 				</plugin>
 
-				<plugin>
+				<!--<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-checkstyle-plugin</artifactId>
 					<version>2.17</version>
@@ -1584,7 +1584,7 @@ under the License.
 						<dependency>
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
-							<!-- Note: match version with docs/flinkDev/ide_setup.md -->
+							&lt;!&ndash; Note: match version with docs/flinkDev/ide_setup.md &ndash;&gt;
 							<version>8.12</version>
 						</dependency>
 					</dependencies>
@@ -1604,7 +1604,7 @@ under the License.
 						<logViolationsToConsole>true</logViolationsToConsole>
 						<failOnViolation>true</failOnViolation>
 					</configuration>
-				</plugin>
+				</plugin>-->
 				
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -1665,7 +1665,7 @@ under the License.
 										<ignore/>
 									</action>
 								</pluginExecution>
-								<pluginExecution>
+								<!--<pluginExecution>
 									<pluginExecutionFilter>
 										<groupId>org.apache.maven.plugins</groupId>
 										<artifactId>maven-checkstyle-plugin</artifactId>
@@ -1677,7 +1677,7 @@ under the License.
 									<action>
 										<ignore />
 									</action>
-								</pluginExecution>
+								</pluginExecution>-->
 								<pluginExecution>
 									<pluginExecutionFilter>
 										<groupId>org.apache.maven.plugins</groupId>

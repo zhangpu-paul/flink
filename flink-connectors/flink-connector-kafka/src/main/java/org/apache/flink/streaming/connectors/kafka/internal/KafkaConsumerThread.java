@@ -28,24 +28,17 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
 import org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaMetricWrapper;
 
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -65,6 +58,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class KafkaConsumerThread extends Thread {
+
+
+	private Logger logger= LoggerFactory.getLogger("log2Es");
 
 	/** Logger for this consumer. */
 	private final Logger log;
@@ -251,6 +247,14 @@ public class KafkaConsumerThread extends Thread {
 				if (records == null) {
 					try {
 						records = consumer.poll(pollTimeout);
+						Iterator<ConsumerRecord<byte[],byte[]>> it = records.iterator();
+						long lastoffset=0;
+						while(it.hasNext()) {
+							lastoffset = it.next().offset();
+						}
+
+						logger.error(String.format("time {}, lastOffset {}",String.valueOf(System.currentTimeMillis()),String.valueOf(lastoffset)));
+
 					}
 					catch (WakeupException we) {
 						continue;
@@ -474,6 +478,12 @@ public class KafkaConsumerThread extends Thread {
 
 	@VisibleForTesting
 	KafkaConsumer<byte[], byte[]> getConsumer(Properties kafkaProperties) {
+
+       //read client.rack
+	   kafkaProperties.setProperty(ConsumerConfig.CLIENT_RACK_CONFIG,"");
+
+
+
 		return new KafkaConsumer<>(kafkaProperties);
 	}
 

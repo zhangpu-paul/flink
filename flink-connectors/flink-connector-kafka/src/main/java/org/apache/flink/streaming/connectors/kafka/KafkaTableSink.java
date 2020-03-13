@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -39,9 +40,10 @@ public class KafkaTableSink extends KafkaTableSinkBase {
 		String topic,
 		Properties properties,
 		Optional<FlinkKafkaPartitioner<Row>> partitioner,
-		SerializationSchema<Row> serializationSchema) {
+		SerializationSchema<Row> serializationSchema,
+		String semantic) {
 
-		super(schema, topic, properties, partitioner, serializationSchema);
+		super(schema, topic, properties, partitioner, serializationSchema,semantic);
 	}
 
 	@Override
@@ -49,11 +51,18 @@ public class KafkaTableSink extends KafkaTableSinkBase {
 		String topic,
 		Properties properties,
 		SerializationSchema<Row> serializationSchema,
-		Optional<FlinkKafkaPartitioner<Row>> partitioner) {
-		return new FlinkKafkaProducer<>(
-			topic,
-			new KeyedSerializationSchemaWrapper<>(serializationSchema),
-			properties,
-			partitioner);
+		Optional<FlinkKafkaPartitioner<Row>> partitioner,
+		String semantic) {
+		if(StringUtils.isBlank(semantic))
+		{
+			return new FlinkKafkaProducer<>(
+				topic,
+				new KeyedSerializationSchemaWrapper<>(serializationSchema),
+				properties,
+				partitioner);
+		}else {
+			return new FlinkKafkaProducer<>(topic, new KeyedSerializationSchemaWrapper<>(serializationSchema),
+				properties, partitioner, FlinkKafkaProducer.Semantic.valueOf(semantic), FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
+		}
 	}
 }

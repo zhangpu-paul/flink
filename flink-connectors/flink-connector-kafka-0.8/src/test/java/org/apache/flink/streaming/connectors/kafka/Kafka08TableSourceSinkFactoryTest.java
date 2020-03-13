@@ -93,7 +93,8 @@ public class Kafka08TableSourceSinkFactoryTest extends KafkaTableSourceSinkFacto
 			topic,
 			properties,
 			partitioner,
-			serializationSchema
+			serializationSchema,
+			null
 		);
 	}
 }

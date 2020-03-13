@@ -85,6 +85,7 @@ public class Kafka09TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBa
 			topic,
 			properties,
 			partitioner,
-			serializationSchema);
+			serializationSchema,
+			null);
 	}
 }

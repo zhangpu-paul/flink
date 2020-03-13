@@ -40,7 +40,7 @@ import java.util.Properties;
  * A version-agnostic Kafka {@link AppendStreamTableSink}.
  *
  * <p>The version-specific Kafka consumers need to extend this class and
- * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional)}}.
+ * override {@link #createKafkaProducer(String, Properties, SerializationSchema, Optional,String)}}.
  */
 @Internal
 public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
@@ -60,17 +60,22 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 	/** Partitioner to select Kafka partition for each item. */
 	protected final Optional<FlinkKafkaPartitioner<Row>> partitioner;
 
+	//AT_LEAST_ONCE EXACTLY_ONCE
+	protected  String semantic;
+
 	protected KafkaTableSinkBase(
 			TableSchema schema,
 			String topic,
 			Properties properties,
 			Optional<FlinkKafkaPartitioner<Row>> partitioner,
-			SerializationSchema<Row> serializationSchema) {
+			SerializationSchema<Row> serializationSchema,
+			String semantic) {
 		this.schema = Preconditions.checkNotNull(schema, "Schema must not be null.");
 		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.partitioner = Preconditions.checkNotNull(partitioner, "Partitioner must not be null.");
 		this.serializationSchema = Preconditions.checkNotNull(serializationSchema, "Serialization schema must not be null.");
+		this.semantic = semantic;
 	}
 
 	/**
@@ -86,7 +91,8 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 		String topic,
 		Properties properties,
 		SerializationSchema<Row> serializationSchema,
-		Optional<FlinkKafkaPartitioner<Row>> partitioner);
+		Optional<FlinkKafkaPartitioner<Row>> partitioner,
+		String semantic);
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
@@ -94,7 +100,8 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 			topic,
 			properties,
 			serializationSchema,
-			partitioner);
+			partitioner,
+			semantic);
 		dataStream.addSink(kafkaProducer).name(TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
