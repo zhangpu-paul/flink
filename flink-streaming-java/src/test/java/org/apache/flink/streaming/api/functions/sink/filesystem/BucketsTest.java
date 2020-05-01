@@ -317,7 +317,7 @@ public class BucketsTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.create().build(),
-				2
+				2,""
 		);
 
 		buckets.onElement(
@@ -380,7 +380,7 @@ public class BucketsTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicy,
-				subtaskIdx
+				subtaskIdx,""
 		);
 	}
 

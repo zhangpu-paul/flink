@@ -365,7 +365,8 @@ public class BucketTest {
 				bucketPath,
 				initialPartCounter,
 				partFileFactory,
-				rollingPolicy);
+				rollingPolicy,
+			    "");
 	}
 
 	private static Bucket<String, String> restoreBucket(
@@ -380,7 +381,8 @@ public class BucketTest {
 				initialPartCounter,
 				partFileFactory,
 				rollingPolicy,
-				bucketState
+				bucketState,
+			    ""
 		);
 	}
 
@@ -400,7 +402,7 @@ public class BucketTest {
 	private Bucket<String, String> getRestoredBucketWithOnlyInProgressPart(final BaseStubWriter writer) throws IOException {
 		final BucketState<String> stateWithOnlyInProgressFile =
 				new BucketState<>("test", new Path(), 12345L, new NoOpRecoverable(), new HashMap<>());
-		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, stateWithOnlyInProgressFile);
+		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, stateWithOnlyInProgressFile,"");
 	}
 
 	private Bucket<String, String> getRestoredBucketWithOnlyPendingParts(final BaseStubWriter writer, final int numberOfPendingParts) throws IOException {
@@ -409,7 +411,7 @@ public class BucketTest {
 
 		final BucketState<String> initStateWithOnlyInProgressFile =
 				new BucketState<>("test", new Path(), 12345L, null, completePartsPerCheckpoint);
-		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, initStateWithOnlyInProgressFile);
+		return Bucket.restore(writer, 0, 1L, partFileFactory, rollingPolicy, initStateWithOnlyInProgressFile,"");
 	}
 
 	private Map<Long, List<RecoverableWriter.CommitRecoverable>> createPendingPartsPerCheckpoint(int noOfCheckpoints) {

@@ -18,10 +18,13 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import com.tuya.basic.mq.init.TuyaKafkaInitializers;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -35,6 +38,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.requests.FindCoordinatorRequest;
 import org.slf4j.Logger;
@@ -55,77 +59,68 @@ import java.util.concurrent.TimeUnit;
 /**
  * Internal flink kafka producer.
  */
-@PublicEvolving
-public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
+@PublicEvolving public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
+
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkKafkaInternalProducer.class);
 
 	protected final KafkaProducer<K, V> kafkaProducer;
 
-	@Nullable
-	protected final String transactionalId;
+	@Nullable protected final String transactionalId;
 
 	public FlinkKafkaInternalProducer(Properties properties) {
 		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
+		boolean isSSL = Boolean.valueOf(properties.getProperty("enable.ssl", "false"));
+		String bootstrap = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+		TuyaKafkaInitializers.initProducer(properties, false, isSSL ? bootstrap : null);
 		kafkaProducer = new KafkaProducer<>(properties);
 	}
 
 	// -------------------------------- Simple proxy method calls --------------------------------
 
-	@Override
-	public void initTransactions() {
+	@Override public void initTransactions() {
 		kafkaProducer.initTransactions();
 	}
 
-	@Override
-	public void beginTransaction() throws ProducerFencedException {
+	@Override public void beginTransaction() throws ProducerFencedException {
 		kafkaProducer.beginTransaction();
 	}
 
-	@Override
-	public void commitTransaction() throws ProducerFencedException {
+	@Override public void commitTransaction() throws ProducerFencedException {
 		kafkaProducer.commitTransaction();
 	}
 
-	@Override
-	public void abortTransaction() throws ProducerFencedException {
+	@Override public void abortTransaction() throws ProducerFencedException {
 		kafkaProducer.abortTransaction();
 	}
 
-	@Override
-	public void sendOffsetsToTransaction(Map<TopicPartition, OffsetAndMetadata> offsets, String consumerGroupId) throws ProducerFencedException {
+	@Override public void sendOffsetsToTransaction(Map<TopicPartition, OffsetAndMetadata> offsets,
+												   String consumerGroupId) throws ProducerFencedException {
 		kafkaProducer.sendOffsetsToTransaction(offsets, consumerGroupId);
 	}
 
-	@Override
-	public Future<RecordMetadata> send(ProducerRecord<K, V> record) {
+	@Override public Future<RecordMetadata> send(ProducerRecord<K, V> record) {
 		return kafkaProducer.send(record);
 	}
 
-	@Override
-	public Future<RecordMetadata> send(ProducerRecord<K, V> record, Callback callback) {
+	@Override public Future<RecordMetadata> send(ProducerRecord<K, V> record, Callback callback) {
 		return kafkaProducer.send(record, callback);
 	}
 
-	@Override
-	public List<PartitionInfo> partitionsFor(String topic) {
+	@Override public List<PartitionInfo> partitionsFor(String topic) {
 		return kafkaProducer.partitionsFor(topic);
 	}
 
-	@Override
-	public Map<MetricName, ? extends Metric> metrics() {
+	@Override public Map<MetricName, ? extends Metric> metrics() {
 		return kafkaProducer.metrics();
 	}
 
-	@Override
-	public void close() {
+	@Override public void close() {
 		kafkaProducer.close();
 	}
 
-	@Override
-	public void close(long timeout, TimeUnit unit) {
+	@Override public void close(long timeout, TimeUnit unit) {
 		kafkaProducer.close(timeout, unit);
 	}
-
 
 	@Override public void close(Duration duration) {
 		kafkaProducer.close();
@@ -133,8 +128,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 	// -------------------------------- New methods or methods with changed behaviour --------------------------------
 
-	@Override
-	public void flush() {
+	@Override public void flush() {
 		kafkaProducer.flush();
 		if (transactionalId != null) {
 			flushNewPartitions();
@@ -148,23 +142,29 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 	 * https://github.com/apache/kafka/commit/5d2422258cb975a137a42a4e08f03573c49a387e#diff-f4ef1afd8792cd2a2e9069cd7ddea630
 	 */
 	public void resumeTransaction(long producerId, short epoch) {
-		Preconditions.checkState(producerId >= 0 && epoch >= 0, "Incorrect values for producerId {} and epoch {}", producerId, epoch);
-		LOG.info("Attempting to resume transaction {} with producerId {} and epoch {}", transactionalId, producerId, epoch);
+		Preconditions
+			.checkState(producerId >= 0 && epoch >= 0, "Incorrect values for producerId {} and epoch {}", producerId,
+				epoch);
+		LOG.info("Attempting to resume transaction {} with producerId {} and epoch {}", transactionalId, producerId,
+			epoch);
 
 		Object transactionManager = getValue(kafkaProducer, "transactionManager");
 		synchronized (transactionManager) {
 			Object nextSequence = getValue(transactionManager, "nextSequence");
 
-			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
+			invoke(transactionManager, "transitionTo",
+				getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.INITIALIZING"));
 			invoke(nextSequence, "clear");
 
 			Object producerIdAndEpoch = getValue(transactionManager, "producerIdAndEpoch");
 			setValue(producerIdAndEpoch, "producerId", producerId);
 			setValue(producerIdAndEpoch, "epoch", epoch);
 
-			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.READY"));
+			invoke(transactionManager, "transitionTo",
+				getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.READY"));
 
-			invoke(transactionManager, "transitionTo", getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.IN_TRANSACTION"));
+			invoke(transactionManager, "transitionTo",
+				getEnum("org.apache.kafka.clients.producer.internals.TransactionManager$State.IN_TRANSACTION"));
 			setValue(transactionManager, "transactionStarted", true);
 		}
 	}
@@ -185,10 +185,10 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		return (short) getValue(producerIdAndEpoch, "epoch");
 	}
 
-	@VisibleForTesting
-	public int getTransactionCoordinatorId() {
+	@VisibleForTesting public int getTransactionCoordinatorId() {
 		Object transactionManager = getValue(kafkaProducer, "transactionManager");
-		Node node = (Node) invoke(transactionManager, "coordinator", FindCoordinatorRequest.CoordinatorType.TRANSACTION);
+		Node node = (Node) invoke(transactionManager, "coordinator",
+			FindCoordinatorRequest.CoordinatorType.TRANSACTION);
 		return node.id();
 	}
 
@@ -210,8 +210,10 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		Object transactionManager = getValue(kafkaProducer, "transactionManager");
 		synchronized (transactionManager) {
 			Object txnRequestHandler = invoke(transactionManager, "addPartitionsToTransactionHandler");
-			invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
-			TransactionalRequestResult result = (TransactionalRequestResult) getValue(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
+			invoke(transactionManager, "enqueueRequest", new Class[] { txnRequestHandler.getClass().getSuperclass() },
+				new Object[] { txnRequestHandler });
+			TransactionalRequestResult result = (TransactionalRequestResult) getValue(txnRequestHandler,
+				txnRequestHandler.getClass().getSuperclass(), "result");
 			return result;
 		}
 	}
