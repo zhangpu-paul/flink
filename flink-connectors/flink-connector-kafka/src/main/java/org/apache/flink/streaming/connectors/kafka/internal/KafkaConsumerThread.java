@@ -18,11 +18,13 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import com.tuya.basic.mq.GlobalConfig;
 import com.tuya.basic.mq.init.TuyaKafkaInitializers;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.streaming.connectors.kafka.FlinkTuyaLoadConfig;
 import org.apache.flink.streaming.connectors.kafka.internals.ClosableBlockingQueue;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionState;
@@ -232,8 +234,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 						// also record that a commit is already in progress
 						// the order here matters! first set the flag, then send the commit command.
 						commitInProgress = true;
-						consumer
-							.commitAsync(commitOffsetsAndCallback.f0, new CommitCallback(commitOffsetsAndCallback.f1));
+						consumer.commitAsync(commitOffsetsAndCallback.f0, new CommitCallback(commitOffsetsAndCallback.f1));
 					}
 				}
 
@@ -268,9 +269,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 						while (it.hasNext()) {
 							lastoffset = it.next().offset();
 						}
-
-						logger.error(String.format("time {}, lastOffset {}", String.valueOf(System.currentTimeMillis()),
-							String.valueOf(lastoffset)));
 
 					} catch (WakeupException we) {
 						continue;
@@ -489,6 +487,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 		boolean isSSL = Boolean.valueOf(kafkaProperties.getProperty("enable.ssl", "false"));
 		String bootstrap = kafkaProperties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+		GlobalConfig.getInstance().setZoneSupplier(FlinkTuyaLoadConfig::getZone);
 		TuyaKafkaInitializers.initConsumer(kafkaProperties, false, isSSL ? bootstrap : null);
 		return new KafkaConsumer<>(kafkaProperties);
 	}

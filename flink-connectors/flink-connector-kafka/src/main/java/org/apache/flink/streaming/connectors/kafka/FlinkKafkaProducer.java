@@ -884,8 +884,8 @@ public class FlinkKafkaProducer<IN>
 		LOG.info("Recovered transactionalIds {}", getUserContext().get().transactionalIds);
 	}
 
-	protected FlinkKafkaInternalProducer<byte[], byte[]> createProducer() {
-		return new FlinkKafkaInternalProducer<>(this.producerConfig);
+	protected FlinkKafkaInternalProducer<byte[], byte[]> createProducer(String jobName) {
+		return new FlinkKafkaInternalProducer<>(jobName,this.producerConfig);
 	}
 
 	/**
@@ -956,8 +956,10 @@ public class FlinkKafkaProducer<IN>
 	}
 
 	private FlinkKafkaInternalProducer<byte[], byte[]> initProducer(boolean registerMetrics) {
-		FlinkKafkaInternalProducer<byte[], byte[]> producer = createProducer();
 
+		String jobName=getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap().get("name");
+
+		FlinkKafkaInternalProducer<byte[], byte[]> producer = createProducer(jobName);
 		RuntimeContext ctx = getRuntimeContext();
 
 		if (flinkKafkaPartitioner != null) {

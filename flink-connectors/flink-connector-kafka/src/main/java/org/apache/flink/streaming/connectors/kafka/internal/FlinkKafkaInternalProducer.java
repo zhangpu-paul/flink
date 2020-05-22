@@ -18,9 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import com.tuya.basic.mq.GlobalConfig;
 import com.tuya.basic.mq.init.TuyaKafkaInitializers;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.streaming.connectors.kafka.FlinkTuyaLoadConfig;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -67,13 +69,25 @@ import java.util.concurrent.TimeUnit;
 
 	@Nullable protected final String transactionalId;
 
-	public FlinkKafkaInternalProducer(Properties properties) {
+	public FlinkKafkaInternalProducer(String jobName,Properties properties) {
 		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
 		boolean isSSL = Boolean.valueOf(properties.getProperty("enable.ssl", "false"));
-		String bootstrap = properties.getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+		String bootstrap = properties.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG);
+		GlobalConfig.getInstance().setServiceName(jobName);
+		GlobalConfig.getInstance().setZkConnection(FlinkTuyaLoadConfig.getZk());
+		GlobalConfig.getInstance().setZkRootPath(FlinkTuyaLoadConfig.ZK_PATH);
+		GlobalConfig.getInstance().setZoneSupplier(FlinkTuyaLoadConfig::getZone);
 		TuyaKafkaInitializers.initProducer(properties, false, isSSL ? bootstrap : null);
 		kafkaProducer = new KafkaProducer<>(properties);
 	}
+
+
+
+	public FlinkKafkaInternalProducer(Properties properties) {
+		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
+		kafkaProducer = new KafkaProducer<>(properties);
+	}
+
 
 	// -------------------------------- Simple proxy method calls --------------------------------
 
