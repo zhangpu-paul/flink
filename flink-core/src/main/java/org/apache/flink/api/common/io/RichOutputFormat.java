@@ -21,6 +21,9 @@ package org.apache.flink.api.common.io;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.RuntimeContext;
 
+import java.io.IOException;
+import java.util.List;
+
 /**
  * An abstract stub implementation for Rich output formats.
  * Rich formats have access to their runtime execution context via {@link #getRuntimeContext()}.
@@ -48,4 +51,9 @@ public abstract class RichOutputFormat<IT> implements OutputFormat<IT> {
 					"it in one of the other life cycle methods.");
 		}
 	}
+
+	public void writeBatchRecord(List<IT> records) throws IOException {
+
+	}
+
 }

@@ -18,8 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
+import com.tuya.basic.mq.GlobalConfig;
+import com.tuya.basic.mq.init.TuyaKafkaInitializers;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.streaming.connectors.kafka.FlinkTuyaLoadConfig;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -70,6 +73,21 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 
 	@Nullable
 	protected final String transactionalId;
+
+	public FlinkKafkaInternalProducer(String jobName,Properties properties) {
+		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
+		boolean isSSL = Boolean.valueOf(properties.getProperty("enable.ssl", "false"));
+		String bootstrap = properties.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG);
+		GlobalConfig.getInstance().setServiceName(jobName);
+		GlobalConfig.getInstance().setZkConnection(FlinkTuyaLoadConfig.getZk());
+		GlobalConfig.getInstance().setZkRootPath(FlinkTuyaLoadConfig.ZK_PATH);
+		GlobalConfig.getInstance().setZoneSupplier(FlinkTuyaLoadConfig::getZone);
+		TuyaKafkaInitializers.initProducer(properties, false, isSSL ? bootstrap : null);
+
+		kafkaProducer = new KafkaProducer<>(properties);
+		producerClosingLock = new Object();
+		closed = false;
+	}
 
 	public FlinkKafkaInternalProducer(Properties properties) {
 		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
@@ -277,7 +295,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 				invoke(transactionManager, "enqueueRequest", new Class[]{txnRequestHandler.getClass().getSuperclass()}, new Object[]{txnRequestHandler});
 				result = (TransactionalRequestResult) getValue(txnRequestHandler, txnRequestHandler.getClass().getSuperclass(), "result");
 			} else {
-				result = new TransactionalRequestResult();
+				result = new TransactionalRequestResult("kafka-operation");
 				result.done();
 			}
 			return result;

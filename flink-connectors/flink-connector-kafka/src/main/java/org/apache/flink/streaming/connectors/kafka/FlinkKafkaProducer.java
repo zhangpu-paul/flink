@@ -1073,6 +1073,10 @@ public class FlinkKafkaProducer<IN>
 		return new FlinkKafkaInternalProducer<>(this.producerConfig);
 	}
 
+	protected FlinkKafkaInternalProducer<byte[], byte[]> createProducer(String jobName) {
+		return new FlinkKafkaInternalProducer<>(jobName,this.producerConfig);
+	}
+
 	/**
 	 * After initialization make sure that all previous transactions from the current user context have been completed.
 	 *
@@ -1164,8 +1168,10 @@ public class FlinkKafkaProducer<IN>
 	}
 
 	private FlinkKafkaInternalProducer<byte[], byte[]> initProducer(boolean registerMetrics) {
-		FlinkKafkaInternalProducer<byte[], byte[]> producer = createProducer();
 
+		String jobName=getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap().get("name");
+
+		FlinkKafkaInternalProducer<byte[], byte[]> producer = createProducer(jobName);
 		RuntimeContext ctx = getRuntimeContext();
 
 		if (flinkKafkaPartitioner != null) {
