@@ -125,14 +125,14 @@ under the License.
 
 	<build>
 		<plugins>
-			<plugin>
+			<!--<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
 
 				<configuration>
 					<suppressionsLocation combine.self="override">/tools/maven/suppressions-core.xml</suppressionsLocation>
 				</configuration>
-			</plugin>
+			</plugin>-->
 
 			<!-- activate API compatibility checks -->
 			<plugin>
