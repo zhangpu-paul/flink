@@ -168,6 +168,12 @@ public class KafkaFetcher<T> extends AbstractFetcher<T, TopicPartition> {
 		}
 	}
 
+
+
+	public Handover getHandover(){
+		return this.handover;
+	}
+
 	@Override
 	public void cancel() {
 		// flag the main thread to exit. A thread interrupt will come anyways.

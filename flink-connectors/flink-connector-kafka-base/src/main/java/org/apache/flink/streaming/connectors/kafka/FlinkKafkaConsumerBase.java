@@ -17,6 +17,10 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import com.tuya.basic.mq.consumer.RackManualPartitionAssignorManager;
+import com.tuya.basic.mq.entity.ConsumeAssignPlan;
+import com.tuya.basic.mq.entity.ConsumerRegistryInfo;
+import com.tuya.basic.mq.entity.EasyTopicPartition;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -57,18 +61,15 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.streaming.connectors.kafka.internals.metrics.KafkaConsumerMetricConstants.COMMITS_FAILED_METRICS_COUNTER;
@@ -231,6 +232,13 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 	private transient KafkaCommitCallback offsetCommitCallback;
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * kafka 同可用区 手动分配方案
+	 */
+	private RackManualPartitionAssignorManager rmpam;
+	private ConsumeAssignPlan consumeAssignPlan;
+
 
 	/**
 	 * Base constructor.
@@ -508,9 +516,48 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		this.partitionDiscoverer.open();
 
 		subscribedPartitionsToStartOffsets = new HashMap<>();
-		final List<KafkaTopicPartition> allPartitions = partitionDiscoverer.discoverPartitions();
+
+        //kafka 同可用区改造 ，只使用fixed topic
+		String consumerId=getRuntimeContext().getTaskNameWithSubtasks();
+	    String zone=FlinkTuyaLoadConfig.getZone();
+		String bootstrap=this.getProperties().getProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG);
+		String jobName=getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap().get("name");
+		FlinkTuyaLoadConfig.initGlobalConfig(jobName);
+
+		ConsumerRegistryInfo consumerRegistryInfo=new ConsumerRegistryInfo();
+		consumerRegistryInfo.setConsumerId(consumerId);
+		consumerRegistryInfo.setZone(zone);
+		consumerRegistryInfo.setSubscribeTopics(topicsDescriptor.getFixedTopics());
+
+		Properties properties = new Properties();
+		properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
+		AdminClient adminClient = AdminClient.create(properties);
+		rmpam=new RackManualPartitionAssignorManager(consumerRegistryInfo,adminClient);
+		consumeAssignPlan=rmpam.getPlan();
+		Map<String, List<EasyTopicPartition>> easyTopicPartitionMap=consumeAssignPlan.getPlan();
+		List<EasyTopicPartition> easyTopicPartitionList=easyTopicPartitionMap.get(consumerId);
+
+		final List<KafkaTopicPartition> allPartitions=new ArrayList<>();
+
+        Function<EasyTopicPartition,KafkaTopicPartition> convert=x->new KafkaTopicPartition(x.getTopic(),x.getPartition());
+		easyTopicPartitionList.stream().map(convert).forEach(allPartitions::add);
+
+		//final List<KafkaTopicPartition> allPartitions = partitionDiscoverer.discoverPartitions();
+
 		if (restoredState != null) {
-			for (KafkaTopicPartition partition : allPartitions) {
+
+			allPartitions.stream().map(x->{
+				if(restoredState.containsKey(x)){
+                   return Tuple2.of(x,restoredState.get(x));
+				}else{
+					return Tuple2.of(x,KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
+				}
+			}).forEach(x->{
+				subscribedPartitionsToStartOffsets.put(x.f0,x.f1);
+			});
+
+
+			/*for (KafkaTopicPartition partition : allPartitions) {
 				if (!restoredState.containsKey(partition)) {
 					restoredState.put(partition, KafkaTopicPartitionStateSentinel.EARLIEST_OFFSET);
 				}
@@ -530,7 +577,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					// in this case, just use the restored state as the subscribed partitions
 					subscribedPartitionsToStartOffsets.put(restoredStateEntry.getKey(), restoredStateEntry.getValue());
 				}
-			}
+			}*/
 
 			if (filterRestoredPartitionsWithCurrentTopicsDescriptor) {
 				subscribedPartitionsToStartOffsets.entrySet().removeIf(entry -> {
@@ -754,12 +801,19 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				// throughout the loop, we always eagerly check if we are still running before
 				// performing the next operation, so that we can escape the loop as soon as possible
 
+
 				while (running) {
 					if (LOG.isDebugEnabled()) {
 						LOG.debug("Consumer subtask {} is trying to discover new partitions ...", getRuntimeContext().getIndexOfThisSubtask());
 					}
 
-					final List<KafkaTopicPartition> discoveredPartitions;
+                    //检测到有新的分区，则让任务失败
+					if(rmpam.shouldUpdate(consumeAssignPlan.getLeader(),consumeAssignPlan.getPlanId())){
+                          this.kafkaFetcher.cancel();
+						  break;
+					}
+
+					/*final List<KafkaTopicPartition> discoveredPartitions;
 					try {
 						discoveredPartitions = partitionDiscoverer.discoverPartitions();
 					} catch (AbstractPartitionDiscoverer.WakeupException | AbstractPartitionDiscoverer.ClosedException e) {
@@ -771,7 +825,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					// no need to add the discovered partitions if we were closed during the meantime
 					if (running && !discoveredPartitions.isEmpty()) {
 						kafkaFetcher.addDiscoveredPartitions(discoveredPartitions);
-					}
+					}*/
 
 					// do not waste any time sleeping if we're not running anymore
 					if (running && discoveryIntervalMillis != 0) {
@@ -839,6 +893,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 		try {
 			super.close();
+
+			rmpam.shouldUpdate(consumeAssignPlan.getLeader(),consumeAssignPlan.getPlanId());
+
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -975,6 +1032,10 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 					return;
 				}
 
+				offsets.forEach((k,v)->{
+					LOG.info("checkpointId:{}, commit:{}-{}-{}",checkpointId,k.getTopic(),k.getPartition(),v.longValue());
+				});
+
 				fetcher.commitInternalOffsetsToKafka(offsets, offsetCommitCallback);
 			} catch (Exception e) {
 				if (running) {
@@ -1081,5 +1142,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		@SuppressWarnings("unchecked")
 		Class<Tuple2<KafkaTopicPartition, Long>> tupleClass = (Class<Tuple2<KafkaTopicPartition, Long>>) (Class<?>) Tuple2.class;
 		return new TupleSerializer<>(tupleClass, fieldSerializers);
+	}
+
+	public  Properties getProperties(){
+		return  null;
 	}
 }

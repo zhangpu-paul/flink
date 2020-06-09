@@ -78,10 +78,7 @@ public class FlinkKafkaInternalProducer<K, V> implements Producer<K, V> {
 		transactionalId = properties.getProperty(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
 		boolean isSSL = Boolean.valueOf(properties.getProperty("enable.ssl", "false"));
 		String bootstrap = properties.getProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG);
-		GlobalConfig.getInstance().setServiceName(jobName);
-		GlobalConfig.getInstance().setZkConnection(FlinkTuyaLoadConfig.getZk());
-		GlobalConfig.getInstance().setZkRootPath(FlinkTuyaLoadConfig.ZK_PATH);
-		GlobalConfig.getInstance().setZoneSupplier(FlinkTuyaLoadConfig::getZone);
+		FlinkTuyaLoadConfig.initGlobalConfig(jobName);
 		TuyaKafkaInitializers.initProducer(properties, false, isSSL ? bootstrap : null);
 
 		kafkaProducer = new KafkaProducer<>(properties);

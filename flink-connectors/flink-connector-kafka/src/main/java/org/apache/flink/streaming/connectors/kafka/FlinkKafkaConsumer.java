@@ -314,4 +314,11 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, deSerName);
 		props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, deSerName);
 	}
+
+
+
+	public  Properties getProperties(){
+		return  this.properties;
+	}
+
 }

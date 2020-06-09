@@ -4,9 +4,9 @@ import com.tuya.basic.mq.GlobalConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
 
 /**
@@ -40,7 +40,7 @@ public class FlinkTuyaLoadConfig {
 		intiConfig();
 	}
 
-	private static void intiConfig() {
+	public static void intiConfig() {
 
 		String path = System.getenv(PATH_KEY);
 		logger.info("zone.path : {}", path);
@@ -65,17 +65,19 @@ public class FlinkTuyaLoadConfig {
 
 	}
 
-	public static String getZone() {
-		String zone = config.getProperty(ZONE_KEY);
-		logger.info("zone:{}", zone);
+
+	public static String getZone(){
+		String zone=config.getProperty(ZONE_KEY);
+		logger.info("zone:{}",zone);
 		return config.getProperty(ZONE_KEY);
 	}
 
-	public static String getZk() {
-		String zk = config.getProperty(ZK_KEY);
-		logger.info("zk:{}", zk);
+	public static String getZk(){
+		String zk=config.getProperty(ZK_KEY);
+		logger.info("zk:{}",zk);
 		return config.getProperty(ZK_KEY);
 	}
+
 
 	private static Object lock = new Object();
 

@@ -268,6 +268,7 @@ public abstract class AbstractFetcher<T, KPH> {
 
 	public abstract void cancel();
 
+
 	// ------------------------------------------------------------------------
 	//  Kafka version specifics
 	// ------------------------------------------------------------------------
