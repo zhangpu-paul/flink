@@ -690,7 +690,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 	 * <p>Therefore, this test is consuming as well from an empty topic.
 	 *
 	 */
-	@RetryOnException(times = 2, exception = kafka.common.NotLeaderForPartitionException.class)
+	//@RetryOnException(times = 2, exception = kafka.common.NotLeaderForPartitionException.class)
 	public void runSimpleConcurrentProducerConsumerTopology() throws Exception {
 		final String topic = "concurrentProducerConsumerTopic_" + UUID.randomUUID().toString();
 		final String additionalEmptyTopic = "additionalEmptyTopic_" + UUID.randomUUID().toString();
@@ -803,9 +803,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			// search for nested SuccessExceptions
 			int depth = 0;
 			while (cause != null && depth++ < 20) {
-				if (cause instanceof kafka.common.NotLeaderForPartitionException) {
+				/*if (cause instanceof kafka.common.NotLeaderForPartitionException) {
 					throw (Exception) cause;
-				}
+				}*/
 				cause = cause.getCause();
 			}
 			throw e;

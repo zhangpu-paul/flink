@@ -548,12 +548,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 		rmpam = new RackManualPartitionAssignorManager(consumerRegistryInfo, adminClient, jobName, parallel);
 		Optional<ConsumeAssignPlan> consumeAssignPlanOptional = rmpam.getPlan();
 		while (!consumeAssignPlanOptional.isPresent()) {
+			consumeAssignPlanOptional = rmpam.getPlan();
 			Thread.sleep(1000);
 		}
 		consumeAssignPlan = consumeAssignPlanOptional.get();
 
 		Map<String, List<EasyTopicPartition>> easyTopicPartitionMap = consumeAssignPlan.getPlan();
+
 		List<EasyTopicPartition> easyTopicPartitionList = easyTopicPartitionMap.get(consumerId);
+
+		LOG.info("get ConsumeAssignPlan ");
+		easyTopicPartitionList.forEach(v->{
+			LOG.info("topic:{},partition:{}",v.getTopic(),v.getTopic());
+		});
 
 		final List<KafkaTopicPartition> allPartitions = new ArrayList<>();
 

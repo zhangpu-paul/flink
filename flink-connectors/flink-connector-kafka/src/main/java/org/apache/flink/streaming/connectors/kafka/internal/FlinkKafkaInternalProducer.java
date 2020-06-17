@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.connectors.kafka.internal;
 
-import com.tuya.basic.mq.GlobalConfig;
 import com.tuya.basic.mq.init.TuyaKafkaInitializers;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
