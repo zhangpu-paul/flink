@@ -163,7 +163,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * The input processor. Initialized in {@link #init()} method.
 	 */
 	@Nullable
-	protected StreamInputProcessor inputProcessor;
+	protected StreamInputProcessor inputProcessor
+		;
 
 	/** the head operator that consumes the input streams of this task. */
 	protected OP headOperator;

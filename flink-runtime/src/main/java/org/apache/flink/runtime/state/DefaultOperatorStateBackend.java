@@ -317,6 +317,13 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
 			// check compatibility to determine if new serializers are incompatible
 			TypeSerializer<S> newPartitionStateSerializer = partitionStateSerializer.duplicate();
 
+
+			LOG.info("newPartitionStateSerializer: {}",newPartitionStateSerializer);
+			LOG.info("restoredPartitionableListStateMetaInfo: {}",restoredPartitionableListStateMetaInfo.getPartitionStateSerializer());
+
+			LOG.info("restoredPartitionableListStateMetaInfo: {}",restoredPartitionableListStateMetaInfo);
+
+
 			TypeSerializerSchemaCompatibility<S> stateCompatibility =
 				restoredPartitionableListStateMetaInfo.updatePartitionStateSerializer(newPartitionStateSerializer);
 			if (stateCompatibility.isIncompatible()) {

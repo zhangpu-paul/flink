@@ -544,11 +544,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 		Properties properties = new Properties();
 		properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
+		int code=bootstrap.hashCode();
+		LOG.info("consumer:{},{}",bootstrap,jobName+code);
 		AdminClient adminClient = AdminClient.create(properties);
-		rmpam = new RackManualPartitionAssignorManager(consumerRegistryInfo, adminClient, jobName, parallel);
+		rmpam = new RackManualPartitionAssignorManager(consumerRegistryInfo, adminClient, jobName+code, parallel);
 		Optional<ConsumeAssignPlan> consumeAssignPlanOptional = rmpam.getPlan();
+		int retry=0;
 		while (!consumeAssignPlanOptional.isPresent()) {
 			consumeAssignPlanOptional = rmpam.getPlan();
+			retry++;
+			if(retry>60){
+				throw new Exception("get ConsumeAssignPlan timeout");
+			}
 			Thread.sleep(1000);
 		}
 		consumeAssignPlan = consumeAssignPlanOptional.get();
@@ -559,7 +566,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 		LOG.info("get ConsumeAssignPlan ");
 		easyTopicPartitionList.forEach(v->{
-			LOG.info("topic:{},partition:{}",v.getTopic(),v.getTopic());
+			LOG.info("topic:{},partition:{}",v.getTopic(),v.getPartition());
 		});
 
 		final List<KafkaTopicPartition> allPartitions = new ArrayList<>();
@@ -825,7 +832,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 					}
 
 					//检测到有新的分区，则让任务失败
+					LOG.info("rmpam.isClusterChange(): {}",rmpam.isClusterChange());
 					if (rmpam.isClusterChange()) {
+					LOG.info("discover new partitions so cancel task....");
 						this.kafkaFetcher.cancel();
 						break;
 					}
@@ -909,6 +918,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 		try {
 			super.close();
 			rmpam.close();
+			LOG.info("RackManualPartitionAssignorManager is closed");
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -1044,10 +1054,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 					return;
 				}
 
-				offsets.forEach((k, v) -> {
+				/*offsets.forEach((k, v) -> {
 					LOG.info("checkpointId:{}, commit:{}-{}-{}", checkpointId, k.getTopic(), k.getPartition(),
 						v.longValue());
-				});
+				});*/
 
 				fetcher.commitInternalOffsetsToKafka(offsets, offsetCommitCallback);
 			} catch (Exception e) {

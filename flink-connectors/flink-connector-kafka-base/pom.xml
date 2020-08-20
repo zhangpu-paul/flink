@@ -45,7 +45,7 @@ under the License.
 		<dependency>
 			<groupId>com.tuya.basic</groupId>
 			<artifactId>basic-mq-client-basic</artifactId>
-			<version>3.2.1-noobShade-SNAPSHOT</version>
+			<version>3.2.2-rc3</version>
 			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
