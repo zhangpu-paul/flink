@@ -175,10 +175,15 @@ under the License.
 			<optional>true</optional>
 		</dependency>
 
-		<dependency>
+		<!--<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka-clients</artifactId>
 			<version>${kafka.version}</version>
+		</dependency>-->
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>tuya-2.4.0.3-filter-rc1</version>
 		</dependency>
 
 		<!-- test dependencies -->
