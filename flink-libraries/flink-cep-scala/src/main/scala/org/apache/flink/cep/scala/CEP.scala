@@ -17,6 +17,7 @@
  */
 package org.apache.flink.cep.scala
 
+import org.apache.flink.cep.functions.InjectionPatternFunction
 import org.apache.flink.cep.scala.pattern.Pattern
 import org.apache.flink.cep.{EventComparator, CEP => JCEP}
 import org.apache.flink.streaming.api.scala.DataStream
@@ -57,5 +58,13 @@ object CEP {
     comparator: EventComparator[T]): PatternStream[T] = {
     wrapPatternStream(JCEP.pattern(input.javaStream, pattern.wrappedPattern, comparator))
   }
+
+
+  def injectionPattern[T](
+    input: DataStream[T],
+      injectionPatternFunction:InjectionPatternFunction[T]):PatternStream[T] ={
+    wrapPatternStream(JCEP.injectionPattern(input.javaStream,injectionPatternFunction))
+      }
+
 }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep;
 
+import org.apache.flink.cep.functions.InjectionPatternFunction;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
@@ -55,4 +56,14 @@ public class CEP {
 		final PatternStream<T> stream = new PatternStream<>(input, pattern);
 		return stream.withComparator(comparator);
 	}
+
+
+
+	public static <T> PatternStream<T> injectionPattern(
+		DataStream<T> input,
+		InjectionPatternFunction<T> injectionPatternFunction){
+		return new PatternStream<>(input,injectionPatternFunction);
+	}
+
+
 }

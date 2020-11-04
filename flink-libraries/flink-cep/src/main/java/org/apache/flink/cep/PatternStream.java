@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.EitherTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.cep.functions.InjectionPatternFunction;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.pattern.Pattern;
@@ -58,6 +59,10 @@ public class PatternStream<T> {
 
 	PatternStream(final DataStream<T> inputStream, final Pattern<T, ?> pattern) {
 		this(PatternStreamBuilder.forStreamAndPattern(inputStream, pattern));
+	}
+
+	PatternStream(final DataStream<T> inputStream, final InjectionPatternFunction function) {
+		this(PatternStreamBuilder.forStreamAndPattern(inputStream, function));
 	}
 
 	PatternStream<T> withComparator(final EventComparator<T> comparator) {

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.functions.NullByteKeySelector;
+import org.apache.flink.cep.functions.InjectionPatternFunction;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.compiler.NFACompiler;
@@ -60,16 +61,21 @@ final class PatternStreamBuilder<IN> {
 	 */
 	private final OutputTag<IN> lateDataOutputTag;
 
+	private final InjectionPatternFunction injectionPatternFunction;
+
+
 	private PatternStreamBuilder(
 			final DataStream<IN> inputStream,
 			final Pattern<IN, ?> pattern,
 			@Nullable final EventComparator<IN> comparator,
-			@Nullable final OutputTag<IN> lateDataOutputTag) {
+			@Nullable final OutputTag<IN> lateDataOutputTag,
+			@Nullable final InjectionPatternFunction injectionPatternFunction) {
 
 		this.inputStream = checkNotNull(inputStream);
-		this.pattern = checkNotNull(pattern);
+		this.pattern = pattern;
 		this.comparator = comparator;
 		this.lateDataOutputTag = lateDataOutputTag;
+		this.injectionPatternFunction=injectionPatternFunction;
 	}
 
 	TypeInformation<IN> getInputType() {
@@ -87,11 +93,11 @@ final class PatternStreamBuilder<IN> {
 	}
 
 	PatternStreamBuilder<IN> withComparator(final EventComparator<IN> comparator) {
-		return new PatternStreamBuilder<>(inputStream, pattern, checkNotNull(comparator), lateDataOutputTag);
+		return new PatternStreamBuilder<>(inputStream, pattern, checkNotNull(comparator), lateDataOutputTag,injectionPatternFunction);
 	}
 
 	PatternStreamBuilder<IN> withLateDataOutputTag(final OutputTag<IN> lateDataOutputTag) {
-		return new PatternStreamBuilder<>(inputStream, pattern, comparator, checkNotNull(lateDataOutputTag));
+		return new PatternStreamBuilder<>(inputStream, pattern, comparator, checkNotNull(lateDataOutputTag),injectionPatternFunction);
 	}
 
 	/**
@@ -114,16 +120,29 @@ final class PatternStreamBuilder<IN> {
 		final boolean isProcessingTime = inputStream.getExecutionEnvironment().getStreamTimeCharacteristic() == TimeCharacteristic.ProcessingTime;
 
 		final boolean timeoutHandling = processFunction instanceof TimedOutPartialMatchHandler;
-		final NFACompiler.NFAFactory<IN> nfaFactory = NFACompiler.compileFactory(pattern, timeoutHandling);
 
-		final CepOperator<IN, K, OUT> operator = new CepOperator<>(
-			inputSerializer,
-			isProcessingTime,
-			nfaFactory,
-			comparator,
-			pattern.getAfterMatchSkipStrategy(),
-			processFunction,
-			lateDataOutputTag);
+		CepOperator<IN, K, OUT> operator=null;
+		if(injectionPatternFunction==null){
+			final NFACompiler.NFAFactory<IN> nfaFactory = NFACompiler.compileFactory(pattern, timeoutHandling);
+			operator = new CepOperator<>(
+				inputSerializer,
+				isProcessingTime,
+				nfaFactory,
+				comparator,
+				pattern.getAfterMatchSkipStrategy(),
+				processFunction,
+				lateDataOutputTag);
+		}else{
+			operator = new CepOperator<>(
+				inputSerializer,
+				isProcessingTime,
+				injectionPatternFunction,
+				comparator,
+				null,
+				processFunction,
+				lateDataOutputTag,null);
+		}
+
 
 		final SingleOutputStreamOperator<OUT> patternStream;
 		if (inputStream instanceof KeyedStream) {
@@ -149,6 +168,11 @@ final class PatternStreamBuilder<IN> {
 	// ---------------------------------------- factory-like methods ---------------------------------------- //
 
 	static <IN> PatternStreamBuilder<IN> forStreamAndPattern(final DataStream<IN> inputStream, final Pattern<IN, ?> pattern) {
-		return new PatternStreamBuilder<>(inputStream, pattern, null, null);
+		return new PatternStreamBuilder<>(inputStream, pattern, null, null,null);
 	}
+
+	static <IN> PatternStreamBuilder<IN> forStreamAndPattern(final DataStream<IN> inputStream, final InjectionPatternFunction injectionPatternFunction) {
+		return new PatternStreamBuilder<>(inputStream, null, null, null,injectionPatternFunction);
+	}
+
 }

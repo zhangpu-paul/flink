@@ -88,6 +88,14 @@ public class SharedBuffer<V> {
 				IntSerializer.INSTANCE));
 	}
 
+
+	public void releaseData(){
+		eventsBuffer.clear();
+		entries.clear();
+		eventsCount.clear();
+	}
+
+
 	/**
 	 * Initializes underlying state with given map of events and entries. Should be used only in case of migration from
 	 * old state.
