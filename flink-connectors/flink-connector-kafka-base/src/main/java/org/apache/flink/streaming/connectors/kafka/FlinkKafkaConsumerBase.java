@@ -545,7 +545,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 		Properties properties = new Properties();
 		properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
 		int code=bootstrap.hashCode();
-		LOG.info("consumer:{},{}",bootstrap,jobName+code);
+		LOG.info("consumer:{},{},{}",bootstrap,jobName+code,topicsDescriptor.getFixedTopics());
 		AdminClient adminClient = AdminClient.create(properties);
 		rmpam = new RackManualPartitionAssignorManager(consumerRegistryInfo, adminClient, jobName+code, parallel);
 		Optional<ConsumeAssignPlan> consumeAssignPlanOptional = rmpam.getPlan();
