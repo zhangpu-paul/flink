@@ -35,13 +35,17 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.json.JsonMapper;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks;
@@ -61,12 +65,24 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedValue;
 
 import org.apache.commons.collections.map.LinkedMap;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContexts;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -536,6 +552,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 		String jobName = getRuntimeContext().getExecutionConfig().getGlobalJobParameters().toMap().get("name");
 		FlinkTuyaLoadConfig.initGlobalConfig(jobName);
 		int parallel = getRuntimeContext().getNumberOfParallelSubtasks();
+
+		/**
+		 * 这里获取topic groupId jobNo name
+		 * 写入到数据库中，作为后续监控使用
+		 */
+		addMonitor();
 
 		ConsumerRegistryInfo consumerRegistryInfo = new ConsumerRegistryInfo();
 		consumerRegistryInfo.setConsumerId(consumerId);
@@ -1156,4 +1178,62 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 	public Properties getProperties() {
 		return null;
 	}
+
+
+
+	public void addMonitor(){
+
+
+		LOG.info("add kafka monitor....");
+
+		try{
+			Map<String, String> env = System.getenv();
+			final String workingDirectory = env.get("PWD");
+			Configuration configuration = GlobalConfiguration.loadConfiguration(workingDirectory);
+
+			String jobName= configuration.getString(ConfigOptions.key("yarn.application.name").defaultValue(""));
+            String taskNo=configuration.getString(ConfigOptions.key("task.jobNo").defaultValue(""));
+            String url=configuration.getString(ConfigOptions.key("kafka.monitor").defaultValue(""));
+            String groupId=this.getProperties().getProperty("group.id");
+
+            Map<String,String> map=new HashMap<>();
+            map.put("jobNo",taskNo);
+            map.put("taskName",jobName);
+            map.put("group",groupId);
+
+			SSLConnectionSocketFactory sslsf = new SSLConnectionSocketFactory(
+				SSLContexts.custom().loadTrustMaterial(null, new TrustSelfSignedStrategy()).build(),
+				NoopHostnameVerifier.INSTANCE);
+			RequestConfig requestConfig = RequestConfig.custom()
+				.setSocketTimeout(10000)
+				.setConnectTimeout(10000)
+				.setConnectionRequestTimeout(10000)
+				.build();
+			CloseableHttpClient httpClient=HttpClients.custom().setDefaultRequestConfig(requestConfig).setSSLSocketFactory(sslsf).build();
+
+			HttpPost httpPost=new HttpPost();
+			httpPost.setURI(new URI(url));
+
+			JsonMapper jsonMapper=new JsonMapper();
+
+			topicsDescriptor.getFixedTopics().stream().forEach(x->{
+				map.put("topic",x);
+				try{
+					String data=jsonMapper.writeValueAsString(map);
+					LOG.info(data);
+					StringEntity entity=new StringEntity(data,"utf-8");
+					httpPost.setEntity(entity);
+					httpPost.setHeader("Content-type", "application/json");
+					httpClient.execute(httpPost);
+
+				}catch (Throwable e){
+                     LOG.error("add kafka monitor:{}",e);
+				}
+			});
+		}catch (Throwable e){
+			LOG.error("add kafka monitor:{}",e);
+		}
+	}
+
+
 }

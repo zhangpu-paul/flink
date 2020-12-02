@@ -327,7 +327,7 @@ public class CepOperator<IN, KEY, OUT>
             	//那么就开始执行清理动作 状态 与 定时器， 应该没有其他的了吧
 				computationStates.clear();
 				elementQueueState.clear();
-
+				partialMatches.releaseData();
                 //删除定时器相关的操作
 				Iterable<Long> registerTime=registerTimeState.get();
 				if(registerTime!=null){
@@ -434,6 +434,8 @@ public class CepOperator<IN, KEY, OUT>
 		//		have state to be used later.
 		// 5) update the last seen watermark.
 
+		clearTime(timer.getTimestamp());
+
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
 		NFAState nfaState = getNFAState();
@@ -468,6 +470,7 @@ public class CepOperator<IN, KEY, OUT>
 
 		// STEP 5
 		updateLastSeenWatermark(timerService.currentWatermark());
+
 	}
 
 	@Override
@@ -477,7 +480,7 @@ public class CepOperator<IN, KEY, OUT>
 		//		by feeding them in the NFA
 		// 3) update the stored state for the key, by only storing the new NFA and MapState iff they
 		//		have state to be used later.
-
+		clearTime(timer.getTimestamp());
 		// STEP 1
 		PriorityQueue<Long> sortedTimestamps = getSortedTimestamps();
 		NFAState nfa = getNFAState();
@@ -503,6 +506,30 @@ public class CepOperator<IN, KEY, OUT>
 		// STEP 3
 		updateNFA(nfa);
 	}
+
+
+	private void clearTime(long t) throws Exception{
+		if(injectionPatternFunction!=null){
+
+			//STEP 0 判断一下当前的version吧
+			int currVersion=needRefresh.value();
+			if(currVersion<refreshVersion.get()){
+				return; //不要处理了吧
+			}
+
+			//STEP 6 clear registerTimeState
+			Iterable<Long> iter=registerTimeState.get();
+			if(iter!=null){
+				Iterator<Long> itr=iter.iterator();
+				while (itr.hasNext()){
+					if(itr.next()==t){
+						itr.remove();
+					}
+				}
+			}
+		}
+	}
+
 
 	private Stream<IN> sort(Collection<IN> elements) {
 		Stream<IN> stream = elements.stream();

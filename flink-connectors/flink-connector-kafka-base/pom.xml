@@ -333,6 +333,10 @@ under the License.
 			<version>${minikdc.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+		</dependency>
 		<!--<dependency>
 			<groupId>com.tuya.basic</groupId>
 			<artifactId>basic-mq-client-basic</artifactId>
